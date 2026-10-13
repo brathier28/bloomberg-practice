@@ -4,6 +4,8 @@
 
 You are implementing the backend for an API gateway product called **Quota**. The system registers API clients, decides whether each incoming request is allowed under a sliding-window quota, snapshots the resulting activity at the end of a billing cycle, and produces a tiered bill.
 
+
+
 ---
 
 ## Clients

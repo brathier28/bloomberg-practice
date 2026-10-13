@@ -20,19 +20,24 @@ see it, or any answer key.
 ```
 bloomberg-practice/
   CONTEXT.md                 <- this file (generator brain, contains answers)
+  INTERVIEWER.md             <- behavior rules for the voice mock interviewer
   answer-keys/
     potluck.md               <- interviewer cheat sheet, one per problem
     <problem>.md
   problems/
     potluck/                 <- candidate-facing files only
+      CLAUDE.md              <- coding-agent rules, identical in every problem
     <problem>/
+  transcripts/               <- /export output and debriefs from mock runs
 ```
 
 Rules:
 
-- Do not rename this file to `CLAUDE.md`. Claude Code loads `CLAUDE.md` files
+- Do not rename this file to `CLAUDE.md`, and never put a `CLAUDE.md` at the
+  repo root or in `answer-keys/`. Claude Code loads `CLAUDE.md` files
   automatically from the launch folder and its parents, which would leak
-  answers into a practice session.
+  answers into a practice session. The only `CLAUDE.md` files allowed are the
+  ones inside `problems/<name>/`.
 - During a timed run, launch the AI agent inside `problems/<problem>/` only.
 - Nothing under `problems/` may contain answers, hints, fixed code, or
   comments that point at bugs. This includes test names (see section 2).
@@ -124,6 +129,7 @@ Each problem in `problems/<name>/` has exactly these files:
 
 | File | Contents |
 |---|---|
+| `CLAUDE.md` | Coding-agent rules. Copy `problems/potluck/CLAUDE.md` unchanged. It must stay generic: no problem-specific content. |
 | `spec.md` | Clean spec written as if from Bloomberg. Overview, rules by area, one worked numeric example, data model table, required interface. No hints. |
 | `question.py` | Working implementation with exactly 5 planted bugs. The target function keeps its signature and docstring; its body is only `raise NotImplementedError("<name> is not implemented.")` |
 | `test_<name>_shipped.py` | Shallow tests that pass against the buggy code by avoiding sharp edges. Tests for the target function fail with NotImplementedError. That is expected. |
@@ -251,8 +257,10 @@ When asked to generate a new problem:
    exposing tests go into the answer key only.
 5. **Record final line numbers** for each bug from the finished
    `question.py`.
-6. **Write `answer-keys/<name>.md`** using the template in section 6.
-7. **Report back with only:** the file list and test-run counts. Do not
+6. **Copy `problems/potluck/CLAUDE.md`** into the new problem folder,
+   unchanged.
+7. **Write `answer-keys/<name>.md`** using the template in section 6.
+8. **Report back with only:** the file list and test-run counts. Do not
    summarize the bugs in chat. The user may be the candidate.
 
 ---
@@ -366,10 +374,12 @@ cents. Everything unawarded rolls over.
 **Clarifying question to deflect:** multiplicity (can one participant win
 with multiple entries?). Answer "your call" and look for the assumption move.
 
-**Spec discrepancy to know:** the workshop said the same code is never given
-to two people, which makes "more than 100,000 entries" a real capacity gap.
-The Pot Luck `spec.md` instead says duplicates are possible, which removes
-that gap. Pick one before a mock and tell the interviewer which.
+**Decided: duplicates are allowed.** The workshop version said the same code
+is never given to two people, which would make "more than 100,000 entries" a
+capacity gap. Practice follows the Pot Luck `spec.md` instead: codes are
+random, two entries can get the same code by chance, and one participant can
+hold several entries. So there's no capacity gap, but raising it still earns
+credit.
 
 **Verify the map:**
 - Does the random range preserve both 00000 and 99999?
