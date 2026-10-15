@@ -27,6 +27,7 @@ bloomberg-practice/
   problems/
     potluck/                 <- candidate-facing files only
       CLAUDE.md              <- coding-agent rules, identical in every problem
+                                except the Mode line
     <problem>/
   transcripts/               <- /export output and debriefs from mock runs
 ```
@@ -39,6 +40,14 @@ Rules:
   answers into a practice session. The only `CLAUDE.md` files allowed are the
   ones inside `problems/<name>/`.
 - During a timed run, launch the AI agent inside `problems/<problem>/` only.
+- Set the `Mode:` line at the top of that problem's `CLAUDE.md` before
+  launching. `strict` (the default): the agent never volunteers bugs. Use it
+  for the first run of any new problem, since bug finding can only be
+  practiced honestly once per problem. `realistic`: the agent occasionally
+  mentions one thing that looks off in code it's working on, the way default
+  Claude does. Use it for reruns of a problem already seen, and for one final
+  dress rehearsal. It drills verifying volunteered claims and not getting
+  sidetracked.
 - Nothing under `problems/` may contain answers, hints, fixed code, or
   comments that point at bugs. This includes test names (see section 2).
 
@@ -65,8 +74,11 @@ The grade is how the candidate directs the AI, not whether they find the
 answer. In the panel's order:
 
 1. **Tests are the strongest signal.** Called the most important part more
-   than once. A failing test before every patch, boundary conditions first,
-   and every test written as behavior from the spec (BDD, section 1a).
+   than once. Every fix proven by a test, boundary conditions first, and
+   every test written as behavior from the spec (BDD, section 1a). Writing
+   and running the failing test before the patch is the practice standard
+   **(suggested)**; the workshop's own debug loop listed the fix before the
+   test (section 1b).
 2. **Ownership.** Treat it like your own product, not "AI, my PM said X."
 3. **A systematic process** that keeps the AI from dragging you off scope.
 4. **Knowing what your code does.** Expect "what's the impact of this line?"
@@ -78,6 +90,11 @@ Also expected:
   anything"). "Fix the problem", "solve it", and "find everything" are
   instant fails.
 - **Narration** while the AI loads: "I expect it to return X."
+- **Using AI on the spec is fine.** The workshop said to use AI to
+  synthesize specs longer than a paragraph and to ask it what the gaps are.
+  A spec checklist or assumption list from the AI is not a fail. The
+  candidate still owns the questions they bring to the interviewer and the
+  assumptions they commit to.
 - **Simplicity.** Small patches. If/else is fine. Don't show off. Money is
   integer cents, never floats.
 
@@ -115,9 +132,11 @@ It shows up in two places:
   I'll add a test so that assumption is explicit."
 - **Verify the AI's map.** "AI is a map, the repository is the territory."
   After the AI points to functions, open them and check its claims.
-- **The debug loop, per bug.** Spec claim, then code seam, then hypothesis,
-  then a failing test, then a minimal fix, then explain why the test proves
-  it.
+- **The debug loop, per bug.** The workshop slide's order: spec claim, code
+  seam, hypothesis, explain, fix, test. Practice standard **(suggested)**:
+  write and run the exposing test before the fix so the interviewer sees it
+  fail. Either way, every fix ends with a test that would fail on the old
+  code.
 - **Check in with the interviewer.** "I'm going to do this approach, what do
   you think?" Don't ignore the interviewer in favor of the AI.
 
@@ -129,7 +148,7 @@ Each problem in `problems/<name>/` has exactly these files:
 
 | File | Contents |
 |---|---|
-| `CLAUDE.md` | Coding-agent rules. Copy `problems/potluck/CLAUDE.md` unchanged. It must stay generic: no problem-specific content. |
+| `CLAUDE.md` | Coding-agent rules. Copy `problems/potluck/CLAUDE.md` unchanged except set `Mode: strict`. It must stay generic: no problem-specific content. |
 | `spec.md` | Clean spec written as if from Bloomberg. Overview, rules by area, one worked numeric example, data model table, required interface. No hints. |
 | `question.py` | Working implementation with exactly 5 planted bugs. The target function keeps its signature and docstring; its body is only `raise NotImplementedError("<name> is not implemented.")` |
 | `test_<name>_shipped.py` | Shallow tests that pass against the buggy code by avoiding sharp edges. Tests for the target function fail with NotImplementedError. That is expected. |
@@ -258,7 +277,7 @@ When asked to generate a new problem:
 5. **Record final line numbers** for each bug from the finished
    `question.py`.
 6. **Copy `problems/potluck/CLAUDE.md`** into the new problem folder,
-   unchanged.
+   unchanged except its `Mode:` line must read `Mode: strict`.
 7. **Write `answer-keys/<name>.md`** using the template in section 6.
 8. **Report back with only:** the file list and test-run counts. Do not
    summarize the bugs in chat. The user may be the candidate.
@@ -296,12 +315,15 @@ or a Claude Doc. Label anything not from the workshop as "(suggested)".
    the map, the debug loop, and checking in with the interviewer), knowing
    what the code does, prompts, narration, simplicity. State the instant-fail
    rule. Tests come first because the panel called them the strongest signal.
+   Set pass signals at the workshop baseline (section 1). List stricter
+   practice standards, like test-before-patch, as strong-pass signals rather
+   than fail conditions.
 7. **Target function guide.** The algorithm in steps, the reference
    implementation, probing questions about specific lines with expected
    answers, and the worked numbers as a table.
 8. **Red flags (suggested).** Grouped as prompt, testing, code, and process.
-9. **Timing guide (suggested).** Table below, plus check-in moments and fair
-   nudges.
+9. **Timing guide (suggested).** Table below, plus check-in moments,
+   soft-pivot and hard-pivot times, and fair nudges.
 
 ### Timing (suggested)
 
@@ -309,21 +331,35 @@ The workshop gave 45 minutes total and said not to let the spec phase eat the
 interview. The exact spec-phase number was cut off in the recording, so this
 split is a practice default.
 
-| Phase | Target |
+| Phase | Clock time |
 |---|---|
-| Read spec + clarifying questions | 5 min |
-| Map the codebase via the AI, then verify | 5 min |
-| Diagnose bugs with targeted prompts | 15 min |
-| Patch + test, one bug at a time | 10 min |
-| Implement the target function | 8 min |
-| Buffer | 2 min |
+| Read spec + clarifying questions | 0-5 min |
+| Map the codebase via the AI, then verify | 5-10 min |
+| Find and fix bugs, one at a time (each fix proven by a test) | 10-25 min |
+| Implement the target function (tests before implementation) | 25-40 min |
+| Validate + wrap up | 40-45 min |
 
 Expected check-ins with the interviewer: before the first patch, and before
 starting the target function.
 
-Pacing (suggested): 3 or more bugs fixed with tests by minute 30 is on track.
+Pivot points (suggested). Every answer key must list both:
+
+- **Soft pivot, minute 25:** if 3 or more bugs are fixed with tests, the
+  interviewer moves the candidate to the target function.
+- **Hard pivot, minute 30:** the interviewer moves the candidate on
+  regardless of bug count, so the target function gets at least 10 minutes.
+- If the candidate asks to move on after 3 clean fixes, the interviewer
+  agrees. That's good time management.
+
+Pacing (suggested): 3 or more bugs fixed with tests by minute 25 is on track.
 The workshop said candidates won't be asked to find every bug, so a clean
 process on fewer bugs is fine.
+
+Fair nudges: at most two, all before the soft pivot. Each one points at a
+spec rule, never at a function name or line number for a bug the candidate
+hasn't found. Good: "What does the spec say should happen at exactly the
+limit?" Bad: "Have you looked at the comparison in `_helper_name`?" A process nudge is also fine: "You have about 25 minutes
+left. What would you prioritize?"
 
 ---
 
@@ -336,6 +372,8 @@ key's "good prompt" fields.
   assumptions I should clarify before I inspect the code."
 - Map: "In question.py, point me to the functions responsible for X, Y, Z.
   Symbol name and a one-line description each. Do not edit files."
+  **(suggested)** Add "Do not list issues" when the agent tends to volunteer
+  bugs while mapping.
 - Challenge: "Compare question.py against these rules: <rules>. List up to
   five likely violations. For each, give the smallest input that would expose
   it. Do not patch anything."

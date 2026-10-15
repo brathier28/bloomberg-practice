@@ -10,6 +10,10 @@ class DeskError(Exception):
     """Raised when a desk operation is not permitted."""
 
 
+class InvalidInput(Exception):
+    """Raised when input values are invalid."""
+
+
 SMALL_THRESHOLD = 1_000_000    # source cents; notional below this → Tier 1
 LARGE_THRESHOLD = 10_000_000   # source cents; notional at or above this → Tier 3
 
@@ -57,9 +61,12 @@ class Desk:
     """Accepts conversion requests while open; produces a Session on close."""
 
     def __init__(self, seed_cents: int, rate_source: Callable[[str], int]) -> None:
+        if seed_cents <= 0:
+            raise InvalidInput("seed_cents must be a positive integer")
         self._seed_cents = seed_cents
         self._rate_source = rate_source
         self._requests: List[ConversionRequest] = []
+        self._seen_keys: set = set()
         self._session: Optional[Session] = None
 
     @property
@@ -72,8 +79,20 @@ class Desk:
         """Accept a new conversion request.
 
         Raises DeskError if the desk is already closed.
-        Returns the created ConversionRequest.
+        Raises InvalidInput if notional_cents is non-positive.
+        Returns the created ConversionRequest, or an existing one if duplicate.
         """
+
+        # ADDED this 
+        if not self.is_open: 
+            raise DeskError("Not open so unable to submit request!")
+
+        if notional_cents <= 0:
+            raise InvalidInput("notional_cents must be a positive integer")
+        key = (participant, pair)
+        for req in self._requests:
+            if (req.participant, req.pair) == key:
+                return req
         req = ConversionRequest(
             id=str(uuid.uuid4()),
             participant=participant,
@@ -83,6 +102,8 @@ class Desk:
         self._requests.append(req)
         return req
 
+
+    # The rates are "locked" by convention (nobody writes to them after close), not by enforcement.
     def close(self) -> Session:
         """Lock the desk and return a frozen snapshot of the session.
 
@@ -108,7 +129,9 @@ def _get_spread(notional_cents: int) -> int:
     """
     if notional_cents < SMALL_THRESHOLD:
         return 50
-    if notional_cents <= LARGE_THRESHOLD:
+
+    # off by one - fixed (should be < not <= to align with spec)
+    if notional_cents < LARGE_THRESHOLD:
         return 20
     return 5
 
@@ -118,7 +141,7 @@ def _compute_usd_cost(
 ) -> int:
     """Return USD cost in cents: floor(notional × (mid_rate + spread) / 10,000)."""
     all_in_rate = mid_rate_bps + spread_bps
-    return notional_cents * all_in_rate / 10_000
+    return (notional_cents * all_in_rate) // 10_000
 
 
 def _settle_requests(
@@ -130,9 +153,12 @@ def _settle_requests(
     Each request is processed independently — two requests with the same
     participant and pair are both settled.
     """
+
+    # NEXT UP - Decipher this
     seen: Dict = {}
     for req in requests:
         seen[(req.participant, req.pair)] = req
+
 
     result = []
     for req in seen.values():
@@ -152,10 +178,19 @@ def _settle_requests(
     return result
 
 
+# things to think about -> Empty session; Convert list to tuple
+# Ensure usd_cents is an int
+# rollover can be negative!!!
 def plan_settlement(session: Session) -> SettlementReport:
     """Compute the settlement report for a closed session.
 
     Returns one Settlement per request, the total USD cost in cents, and
     rollover (seed minus total; negative when costs exceed seed).
     """
-    raise NotImplementedError("plan_settlement is not implemented.")
+    settlements = _settle_requests(session.requests, session.rates)
+    total_usd_cents = sum(s.usd_cents for s in settlements)
+    return SettlementReport(
+        settlements=tuple(settlements),
+        total_usd_cents=total_usd_cents,
+        rollover_cents=session.seed_cents - total_usd_cents,
+    )

@@ -1,0 +1,613 @@
+
+❯ <ide_opened_file>The user opened the file
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/spec.md in the
+  IDE. This may or may not be related to the current task.</ide_opened_file>
+
+❯ Read the spec and write down some rules questions presents or assumptions. Do
+  not read question.py or anything otuside scope of file
+
+⏺ Reading the spec now.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Here are the key rules, open questions, and assumptions from the spec:
+
+  ---
+
+  Participant IDs
+  - Zero-padded two-digit sequence: "00", "01", ... "10", etc.
+  - Question (already noted): What happens past "99"? The spec says "any number
+    of participants" but IDs are two-digit. Does it roll to three digits? Raise
+    an error? This is undefined.
+  - IDs are assigned by join order — they appear to be deterministic and
+    sequential, not random.
+
+  Display Names
+  - Duplicate names are allowed. Each is a distinct participant with their own
+    share.
+  - Assumption: The spec says "not more than three" in your personal notes —
+    unclear what this refers to (words? characters?). The spec body doesn't
+    state a name length limit, so this may be something to clarify.
+
+  Expenses
+  - Snapshot of participants at the moment record_expense is called — latecomers
+    are excluded from past expenses.
+  - total_cents is always an integer (no fractional cents ever).
+  - Expense has its own id field — the spec doesn't say how it's generated.
+    Assumption: probably sequential like participants.
+
+  Splitting (the core logic)
+  - Floor division: base = total_cents // n
+  - Remainder: r = total_cents % n — exactly r participants get one extra cent.
+  - Top-up assignment is strictly by join order (earliest joiners first).
+  - Zero remainder → every participant gets exactly base cents.
+  - Edge case: What if total_cents = 0? Valid — every participant gets 0.
+  - Edge case: Single participant gets 100% of the total (no remainder possible
+    since n=1).
+
+  Lifecycle
+  - Two distinct SplitTabError cases: recording on a closed tab, and
+    double-closing.
+  - No mention of re-opening a tab — assumption: once closed, permanently
+    closed.
+  - No restriction on zero participants when recording an expense — question:
+    can you call record_expense before anyone has joined? The spec doesn't
+    explicitly forbid it, which would mean n=0 and a division-by-zero.
+
+  count_payers and plan_splits
+  - These are standalone functions, not methods on SplitTab, so they operate on
+    an Expense object after the fact.
+  - plan_splits returns a SplitPlan with splits (list of Split) and
+    total_distributed — assumption: total_distributed should always equal
+    expense.total_cents.
+
+❯ <ide_opened_file>The user opened the file
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/spec.md in the
+  IDE. This may or may not be related to the current task.</ide_opened_file>
+
+❯ Can you formalize this into a checklist please
+
+⏺ Skill(artifact-design)
+  ⎿  Successfully loaded skill
+
+  Made 1 scratchpad edit +567 (ctrl+o to expand)
+
+⏺ Artifact("splits-checklist.html")
+  ⎿  Published ⧉ https://claude.ai/artifact/7wHA9xVPBBGuae25qwsihu
+
+⏺ Here's the checklist: ⧉ https://claude.ai/artifact/7wHA9xVPBBGuae25qwsihu
+
+  Items are grouped by topic — Participants, Expenses, Splitting, Lifecycle, and
+  Interface. Open questions are highlighted in amber so they stand out from
+  confirmed rules. Checkboxes persist across page reloads via localStorage, and
+  a progress bar tracks completion across all items.
+
+❯ <ide_selection>The user selected the lines 40 to 40 from
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/question.py:
+  A
+
+  This may or may not be related to the current task.</ide_selection>
+
+❯ Okay claude, in question.py and within this scope only, please identify the
+  functions for adding partiicpants and splitting checks, include one line
+  descriptions.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Here are the relevant functions:
+
+  Adding participants
+  - add_participant (question.py#L103) — registers a new participant with a
+    zero-padded ID and appends them to the tab's internal list.
+
+  Splitting
+  - _spread_remainder (question.py#L204) — distributes remainder cents
+    one-at-a-time to the first remainder elements of an amounts list (in-place
+    helper).
+  - count_payers (question.py#L220) — returns the number of payers for an
+    expense by counting unique names (bug: should count participants by
+    identity, not deduplicated names).
+  - plan_splits (question.py#L245) — computes the full SplitPlan for an expense;
+    currently raises NotImplementedError — this is what needs to be
+    implemented.
+
+  Also worth noting: _spread_remainder at line 211 (question.py#L211) has an
+  off-by-one — it loops range(remainder - 1) instead of range(remainder), so it
+  distributes one fewer cent than it should.
+
+❯ <ide_opened_file>The user opened the file
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/question.py in the
+  IDE. This may or may not be related to the current task.</ide_opened_file>
+
+❯ can you give me an example of how spread_remainder would work please?
+
+⏺ Using the spec's own example — 1001 cents split 3 ways:
+
+  base      = 1001 // 3  →  333
+  remainder = 1001 %  3  →  2
+
+  amounts = [333, 333, 333]   ← one entry per participant, in join order
+
+  _spread_remainder(amounts, 2)
+    loop: range(2 - 1)  →  range(1)  →  only index 0
+    amounts[0] += 1
+
+  result: [334, 333, 333]
+
+  The spec says remainder = 2 means 2 participants should each get +1 cent, so
+  the correct result is [334, 334, 333]. The bug at line 211 (question.py#L211)
+  — range(remainder - 1) instead of range(remainder) — means it always
+  distributes one fewer cent than it should, breaking the "every cent is
+  distributed" invariant.
+
+❯ <ide_opened_file>The user opened the file
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/question.py in the
+  IDE. This may or may not be related to the current task.</ide_opened_file>
+
+❯ Can you write a few tests for add_participants - 1.  verifying that adding an
+  indvidual will produce a string id of len 2; 2. ensuring that 0-99 are valid
+  options (could add 100 people in a loop) and 3. ensuring that the 101st
+  individual should raise an error.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(test_splits.py)
+  ⎿  Added 23 lines
+      14  )
+      15  
+      16  # Add your tests here.
+      17 +                                                               
+      18 +                                                               
+      19 +class TestAddParticipant:                                      
+      20 +    def test_id_is_length_two_string(self):                    
+      21 +        tab = SplitTab()                                       
+      22 +        p = tab.add_participant("Alice")                       
+      23 +        assert isinstance(p.id, str)                           
+      24 +        assert len(p.id) == 2                                  
+      25 +                                                               
+      26 +    def test_ids_zero_through_ninetynine_are_valid(self):      
+      27 +        tab = SplitTab()                                       
+      28 +        participants = [tab.add_participant("Person") for _ in 
+         +range(100)]                                                    
+      29 +        assert participants[0].id == "00"                      
+      30 +        assert participants[9].id == "09"                      
+      31 +        assert participants[10].id == "10"                     
+      32 +        assert participants[99].id == "99"                     
+      33 +                                                               
+      34 +    def test_101st_participant_raises(self):                   
+      35 +        tab = SplitTab()                                       
+      36 +        for _ in range(100):                                   
+      37 +            tab.add_participant("Person")                      
+      38 +        with pytest.raises(SplitTabError):                     
+      39 +            tab.add_participant("One Too Many")                
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ All three fail, and the failures are informative — they surface three bugs in
+  add_participant at question.py:128 (question.py#L128):
+
+  1. ID not zero-padded — uses str(self._counter) → "0" instead of
+     f"{self._counter:02d}" → "00".
+  2. Same root cause — zero-padding is missing for all IDs.
+  3. No 100-participant limit enforced — there's no guard that raises
+     SplitTabError once _counter reaches 100.
+
+  The tests are correct per the spec; the implementation needs fixing.
+
+❯ In question.py can you reinforce the following: 1. add zero padding, ensure
+  100-pariticpant limit enoforced
+
+⏺ Update(question.py)
+  ⎿  Error editing file
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(question.py)
+  ⎿  Added 3 lines, removed 7 lines
+      125          """
+      126          if self._closed:
+      127              raise SplitTabError("Cannot add participant to a c
+           losed tab.")
+      128 -                                                              
+      129 -                                                              
+      130 -        # Personal q: Doesn't seem like counter statistics wor
+          -k                                                             
+      131 -                                                              
+      132 -        # I expect beyond 99 to not be added or produce some f
+          -orm of error                                                  
+      133 -        # I also expect 0 - 99 to be in a two-digit format (so
+          - checking len)                                                
+      134 -        participant = Participant(id=str(self._counter), name=
+          -name)                                                         
+      128 +        if self._counter >= 100:                              
+      129 +            raise SplitTabError("Tab has reached the maximum o
+          +f 100 participants.")                                         
+      130 +        participant = Participant(id=f"{self._counter:02d}", n
+          +ame=name)                                                     
+      131          self._counter += 1
+      132          self._participants.append(participant)
+      133          return participant
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ All 3 pass. Two changes made to question.py:127 (question.py#L127):
+  - str(self._counter) → f"{self._counter:02d}" for zero-padding
+  - Added the >= 100 guard before creating the participant
+
+❯ <ide_opened_file>The user opened the file
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/question.py in the
+  IDE. This may or may not be related to the current task.</ide_opened_file>
+
+❯ For record_expense, can you add a test ensuring that calling record_expense
+  rasies a SplitTabError if tab already closed
+
+⏺ Update(test_splits.py)  ⎿  Added 9 lines
+      37              tab.add_participant("Person")
+      38          with pytest.raises(SplitTabError):
+      39              tab.add_participant("One Too Many")
+      40 +                                                               
+      41 +                                                               
+      42 +class TestRecordExpense:                                       
+      43 +    def test_record_expense_on_closed_tab_raises(self):        
+      44 +        tab = SplitTab()                                       
+      45 +        tab.add_participant("Alice")                           
+      46 +        tab.close_tab()                                        
+      47 +        with pytest.raises(SplitTabError):                     
+      48 +            tab.record_expense("Dinner", 1000)                 
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Test fails — record_expense has no closed-tab guard. That's a bug in the
+  implementation at question.py:157 (question.py#L157), matching what we noted
+  earlier from the spec. The test is correct.
+
+❯ Can you show me what the change would be for that, soley within the
+  record_expense scope
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Add one guard at the top of the method body, right after the docstring:
+
+          """
+          SplitTabError
+              If the tab is already closed.
+          """
+          if self._closed:                                          # ← add this
+              raise SplitTabError("Cannot record expense on a closed tab.")  # ←
+  and this
+
+          expense = Expense(
+              ...
+
+  Same pattern as add_participant — check _closed before doing any work.
+
+❯ <ide_opened_file>The user opened the file
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/question.py in the
+  IDE. This may or may not be related to the current task.</ide_opened_file>
+
+❯ Another assumtption I would like to valdiate--- in sepc it mentions expenses
+  and aprticipates being immutable/frozen, is this validated in the code? Look
+  at quesiton.py only
+
+⏺ Yes and no — let me show you exactly where it holds and where it doesn't.
+
+  Dataclasses — frozen correctly (line 30 (question.py#L30), 38
+  (question.py#L38), 48 (question.py#L48), 57 (question.py#L57))
+  @dataclass(frozen=True)
+  class Participant: ...
+
+  @dataclass(frozen=True)
+  class Expense: ...
+  frozen=True prevents field reassignment on any instance. ✓
+
+  Expense.participants type annotation (line 45 (question.py#L45))
+  participants: Tuple[Participant, ...]
+  Typed as a tuple (immutable). ✓ on paper.
+
+  But record_expense passes the live list (line 165 (question.py#L165))
+  expense = Expense(
+      ...
+      participants=self._participants,   # ← raw List, not a snapshot
+  )
+  Python doesn't enforce type annotations at runtime, so expense.participants is
+  actually the same mutable list object as self._participants. If a participant
+  joins after this expense is recorded, that expense's participant list
+  reflects it — directly violating the spec's "snapshot is fixed" rule.
+
+  The fix would be participants=tuple(self._participants) — the participants
+  property already does this correctly (line 184 (question.py#L184)), but
+  record_expense doesn't.
+
+❯ What would a test look like to verify that partiicpatns remain frozen?
+
+⏺ def test_expense_participant_snapshot_is_fixed():
+      tab = SplitTab()
+      tab.add_participant("Alice")
+      expense = tab.record_expense("Dinner", 1000)
+
+      tab.add_participant("Bob")   # joins after expense was recorded
+
+      assert len(expense.participants) == 1
+      assert expense.participants[0].name == "Alice"
+
+  Record the expense with one participant, add a second afterward, then assert
+  the expense still only sees the original snapshot. This test will currently
+  fail because of the live-list bug — expense.participants would reflect Bob
+  too.
+
+❯ <ide_opened_file>The user opened the file
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/question.py in the
+  IDE. This may or may not be related to the current task.</ide_opened_file>
+
+❯ Can you verify what total_distributed means for SplitPlan?
+
+⏺ From what's already in context — question.py:62 (question.py#L62):
+
+  @dataclass(frozen=True)
+  class SplitPlan:
+      splits: Tuple[Split, ...]
+      total_distributed: int
+
+  The field is defined but has no docstring. The spec says:
+
+  ▎ plan_splits returns a SplitPlan with splits and total_distributed
+
+  And the plan_splits docstring at question.py:263 (question.py#L263) states:
+
+  ▎ total_distributed equals expense.total_cents exactly.
+
+  So total_distributed is the sum of all individual Split.amount_cents values —
+  it exists as a sanity check that every cent was accounted for. It should
+  always equal expense.total_cents; if it doesn't, the splitting logic has a
+  bug.
+
+❯ <ide_selection>The user selected the lines 302 to 306 from
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/question.py:
+  Basic -> no remainders present, solid split amongst everyone
+
+  # Cent remainder -> remainder is passed along to the FIRST individual that
+  joined
+  # Two names -> split is accounted for that second same-name individaul
+  # Test that total_distrubuted matches expesne.total_cents
+  # Tests that objects from SplitPlan are frozen
+  This may or may not be related to the current task.</ide_selection>
+
+❯ Hi claude, can you write some tests for plan_split that verify the following:
+  1. Basic test (three partiicpants of differne names added, solid split/no
+  cent remainder). 2. remainder is presentand passed along to FIRST individaul,
+  split with two people of the same name, test that total_distributed matches
+  expesne.total_cents, and then tests that objects from SplitPlan are frozen.
+  Can you first determine if any of these tests are redundant? Look at
+  test_splits.py soley.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ No redundancy — none of the five planned tests exist yet. All five are
+  distinct and worth writing:
+
+  1. Basic split — not covered
+  2. Remainder to first joiner — not covered
+  3. Two same-name participants — not covered
+  4. total_distributed equals total_cents — not covered; note this is actually
+     implied by test 1 and 2, but explicit is better here
+  5. SplitPlan frozen — not covered
+
+  Worth flagging: tests 1 and 4 overlap slightly — a basic split that passes
+  will inherently distribute all cents correctly. But having an explicit
+  total_distributed assertion is still worth keeping as its own test since it
+  targets a specific field and is easy to miss in a broader test.
+
+  Want me to write all five?
+
+❯ <ide_opened_file>The user opened the file /Users/brathier/Desktop/bloomberg-p
+  ractice/problems/splits/test_splits_shipped.py in the IDE. This may or may
+  not be related to the current task.</ide_opened_file>
+
+❯ can you see if they are present in test_splits_shopped?
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Here's what's already covered vs. what's still missing from your five planned
+  tests:
+
+  Planned test: Basic even split
+  In test_splits_shipped.py?: Partially —
+  test_total_distributed_equals_expense_total_for_even_split (line 137) and
+  test_split_count_equals_participant_count (line 146) cover the shape, but
+  neither asserts the per-person amount
+  ────────────────────────────────────────
+  Planned test: Remainder to first joiner
+  In test_splits_shipped.py?: Not covered
+  ────────────────────────────────────────
+  Planned test: Two same-name participants
+  In test_splits_shipped.py?: Not covered
+  ────────────────────────────────────────
+  Planned test: total_distributed == total_cents
+  In test_splits_shipped.py?: Covered (line 137), even-split only
+  ────────────────────────────────────────
+  Planned test: SplitPlan frozen
+  In test_splits_shipped.py?: Not covered
+
+  So 3 are new (remainder, same-name, frozen), the basic split test should still
+  be written since the shipped version doesn't assert per-person amounts, and
+  total_distributed is already covered for the even case — worth adding a
+  remainder case though. Want me to write them?
+
+❯ Can you add those new tests to test_splits.py?
+
+⏺ Update(test_splits.py)
+  ⎿  Added 50 lines
+      46          tab.close_tab()
+      47          with pytest.raises(SplitTabError):
+      48              tab.record_expense("Dinner", 1000)
+      49 +                                                               
+      50 +                                                               
+      51 +class TestPlanSplits:                                          
+      52 +    def test_even_split_per_person_amount(self):               
+      53 +        tab = SplitTab()                                       
+      54 +        tab.add_participant("Alice")                           
+      55 +        tab.add_participant("Bob")                             
+      56 +        tab.add_participant("Carol")                           
+      57 +        expense = tab.record_expense("Dinner", 300)            
+      58 +        plan = plan_splits(expense)                            
+      59 +        assert all(s.amount_cents == 100 for s in plan.splits) 
+      60 +                                                               
+      61 +    def test_remainder_goes_to_earliest_joiner_first(self):    
+      62 +        tab = SplitTab()                                       
+      63 +        tab.add_participant("Zoe")                             
+      64 +        tab.add_participant("Alice")                           
+      65 +        tab.add_participant("Bob")                             
+      66 +        expense = tab.record_expense("Dinner", 1001)           
+      67 +        plan = plan_splits(expense)                            
+      68 +        amounts = {s.participant_name: s.amount_cents for s in 
+         +plan.splits}                                                   
+      69 +        assert amounts["Zoe"] == 334                           
+      70 +        assert amounts["Alice"] == 334                         
+      71 +        assert amounts["Bob"] == 333                           
+      72 +                                                               
+      73 +    def test_same_name_participants_each_get_own_share(self):  
+      74 +        tab = SplitTab()                                       
+      75 +        tab.add_participant("Alex")                            
+      76 +        tab.add_participant("Alex")                            
+      77 +        expense = tab.record_expense("Coffee", 101)            
+      78 +        plan = plan_splits(expense)                            
+      79 +        assert len(plan.splits) == 2                           
+      80 +        assert sum(s.amount_cents for s in plan.splits) == 101 
+      81 +                                                               
+      82 +    def test_total_distributed_equals_total_cents_with_remainde
+         +r(self):                                                       
+      83 +        tab = SplitTab()                                       
+      84 +        tab.add_participant("Alice")                           
+      85 +        tab.add_participant("Bob")                             
+      86 +        expense = tab.record_expense("Taxi", 201)              
+      87 +        plan = plan_splits(expense)                            
+      88 +        assert plan.total_distributed == expense.total_cents   
+      89 +                                                               
+      90 +    def test_split_plan_and_splits_are_frozen(self):           
+      91 +        tab = SplitTab()                                       
+      92 +        tab.add_participant("Alice")                           
+      93 +        expense = tab.record_expense("Lunch", 500)             
+      94 +        plan = plan_splits(expense)                            
+      95 +        with pytest.raises(Exception):                         
+      96 +            plan.total_distributed = 999                       
+      97 +        with pytest.raises(Exception):                         
+      98 +            plan.splits[0].amount_cents = 999                  
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ All 5 tests are in and failing for the right reason — plan_splits is partially
+  implemented but has a bug: count_payers() is called without passing expense
+  (question.py:284 (question.py#L284)). That's blocking all five. The tests
+  themselves are correct; the implementation needs work.
+
+❯ <ide_selection>The user selected the lines 302 to 306 from
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/question.py:
+  Basic -> no remainders present, solid split amongst everyone
+
+  # Cent remainder -> remainder is passed along to the FIRST individual that
+  joined
+  # Two names -> split is accounted for that second same-name individaul
+  # Test that total_distrubuted matches expesne.total_cents
+  # Tests that objects from SplitPlan are frozen
+  This may or may not be related to the current task.</ide_selection>
+
+❯ Given the psuedocode present in plan)splits, produce an implementation
+  following what is provided and utililizng the helper methods present, Let me
+  know if there is any ambugiity
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Also reading _spread_remainder to confirm its signature before using it.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ One ambiguity before I implement: count_payers deduplicates by name
+  (len({p.name for p in expense.participants})), so two participants named
+  "Alex" would return 1 instead of 2. The pseudocode uses count_payers() as the
+  denominator for splitting, but that's wrong per the spec — the split should be
+  across all participants regardless of name.
+
+  Should I use len(expense.participants) directly instead of count_payers(), or
+  did you intend to fix count_payers separately? The pseudocode says to use it,
+  but it will give wrong results for the same-name test case.
+
+❯ <ide_opened_file>The user opened the file
+  /Users/brathier/Desktop/bloomberg-practice/problems/splits/question.py in the
+  IDE. This may or may not be related to the current task.</ide_opened_file>
+
+❯ count_players goes by id now, no?
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Yes — count_payers now uses {p.id for p in expense.participants} at
+  question.py:255 (question.py#L255), so it counts by unique ID. Since IDs are
+  always unique, it correctly returns the true participant count regardless of
+  shared names. No ambiguity — I'll proceed with the implementation.
+
+⏺ Update(question.py)
+  ⎿  Error editing file
+
+  Read 1 file (ctrl+o to expand)
+⏺ Update(question.py)
+  ⎿  Error editing file
+
+⏺ The file has changed on disk since my last read. Let me re-read it fresh.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ The content matches what I have — the Edit tool is likely tripping on
+  invisible whitespace differences. I'll replace the entire function body using
+  the docstring closing line as a clean anchor.
+
+⏺ Update(question.py)
+  ⎿  Error editing file
+
+⏺ There are invisible characters or encoding differences the Edit tool can't
+  match. I'll write the full function directly with Bash using Python's ast to
+  replace the body cleanly.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ Trailing spaces after each line are causing the mismatch. I'll rewrite the
+  function body directly with a Python script.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ All 5 pass. Note: the remainder test passing means _spread_remainder's
+  off-by-one bug doesn't affect the 1001/3 case — that test only needed 2
+  top-ups and range(remainder - 1) = range(1) still gave index 0, but the second
+  top-up (index 1) was missed. Let me verify the remainder test actually caught
+  that correctly.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ That's suspicious given the _spread_remainder off-by-one. Let me verify the
+  helper's current state.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ The off-by-one was already fixed — the loop is now range(remainder), not
+  range(remainder - 1). You must have corrected it in the IDE. All 5 tests
+  passing are genuinely correct. Everything in plan_splits is working as
+  specced.
+
+❯ <ide_opened_file>The user opened the file /Users/brathier/Desktop/bloomberg-p
+  ractice/problems/splits/test_splits_shipped.py in the IDE. This may or may
+  not be related to the current task.</ide_opened_file>
+
+❯ Can you explain why I might be getting a type error for 0
+  test_expense_participant_snapshot_is_fixed
+
+⏺ Looking at what's already in context — test_splits_shipped.py:77
+  (test_splits_shipped.py#L77):
+
+  class TestShippedExpenseRecording:
+      ...
+      def test_expense_participant_snapshot_is_fixed():   # ← missing `self`
+
+  It's defined inside a class but has no self parameter. When pytest calls it as
+  a method, Python passes the instance as the first argument and the function
+  receives it as an unexpected positional arg — hence the TypeError. The fix is
+  just adding self:
+
+      def test_expense_participant_snapshot_is_fixed(self):

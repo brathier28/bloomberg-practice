@@ -1,5 +1,16 @@
 # FX Desk — Daily Settlement
 
+
+## Clarifications
+
+- ID - any unique string -> Are duplicats allowed? (I would say no -> let me write a test for that)
+- Unknown pair -> propogate 
+- Notional -> +integer (I would assume we should error handle -> let me write a test for that)
+- Seed_sents -> guaranteed to be +? (I would say check for it anyways -> let me write a test)
+
+The rates are "locked" by convention (nobody writes to them after close), not by enforcement. (Might be something to guardrail int the future)
+
+
 ## Overview
 
 A currency clearing desk accepts FX conversion requests during an open window.
